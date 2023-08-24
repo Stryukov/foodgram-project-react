@@ -1,4 +1,9 @@
 version: '3.3'
+
+volumes:
+  pg_data:
+  static:
+
 services:
 
   frontend:
@@ -6,12 +11,21 @@ services:
       context: ../frontend
       dockerfile: Dockerfile
     volumes:
-      - ../frontend/:/app/result_build/
+      - static:/app/result_build
   nginx:
     image: nginx:1.19.3
     ports:
       - "80:80"
     volumes:
       - ./nginx.conf:/etc/nginx/conf.d/default.conf
-      - ../frontend/build:/usr/share/nginx/html/
+      - static:/usr/share/nginx/html/
       - ../docs/:/usr/share/nginx/html/api/docs/
+    extra_hosts:
+      - "host.docker.internal:127.0.0.1"
+  backend:
+    build:
+      context: ../backend
+      dockerfile: Dockerfile
+    volumes:
+      - pg_data:/app/database
+      - static:/app/backend_static

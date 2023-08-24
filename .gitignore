@@ -130,3 +130,6 @@ dmypy.json
 
 # .idea
 .idea
+
+# misc
+data/db_scheme.txt
