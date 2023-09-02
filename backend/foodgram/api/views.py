@@ -6,10 +6,12 @@ from rest_framework.response import Response
 from rest_framework import status
 from django_filters.rest_framework import DjangoFilterBackend
 
-from recipes.models import Tag, Recipe, Ingredient, User, Subscription, FavoriteRecipe
+from recipes.models import Tag, Recipe, Ingredient, User, Subscription, \
+    FavoriteRecipe, ShoppingCart
 from .serializers import TagSerializer, RecipeSerializer, \
     IngredientSerializer, SubscriptionSerializer, UserSerializer, \
-    UserCreateSerializer, SetPasswordSerializer, FavoriteRecipeSerializer
+    UserCreateSerializer, SetPasswordSerializer, FavoriteRecipeSerializer, \
+    ShopingCartSerializer, RecipeCreateSerializer
 from .filters import RecipeFilter
 
 
@@ -126,3 +128,32 @@ class RecipesViewSet(ModelViewSet):
             )
             subscribe.delete()
             return Response(status=status.HTTP_204_NO_CONTENT)
+
+    @action(detail=True, methods=['post', 'delete'])
+    def shopping_cart(self, request, pk=None):
+        recipe = self.get_object()
+        if request.method == 'POST':
+            serializer = ShopingCartSerializer(data=request.data)
+            if serializer.is_valid():
+                serializer.save(recipe=recipe, user=request.user)
+                return Response(
+                    serializer.data, status=status.HTTP_201_CREATED
+                )
+            else:
+                return Response(
+                    serializer.errors, status=status.HTTP_400_BAD_REQUEST
+                )
+        if request.method == 'DELETE':
+            subscribe = get_object_or_404(
+                ShoppingCart, recipe=recipe, user=request.user
+            )
+            subscribe.delete()
+            return Response(status=status.HTTP_204_NO_CONTENT)
+
+    # def get_serializer(self):
+    #     if self.action in ['create', ]:
+    #         return RecipeCreateSerializer
+    #     return RecipeSerializer
+
+    # def perform_create(self, serializer):
+    #     serializer.save(author=self.request.user)

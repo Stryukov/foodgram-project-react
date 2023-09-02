@@ -34,7 +34,12 @@ class Recipe(models.Model):
     name = models.CharField(max_length=200)
     text = models.TextField()
     cooking_time = models.PositiveIntegerField()
-    is_favorited = models.ManyToManyField(User, through='FavoriteRecipe')
+    is_favorited = models.ManyToManyField(
+        User, through='FavoriteRecipe', related_name='in_favorite'
+    )
+    is_in_shopping_cart = models.ManyToManyField(
+        User, through='ShoppingCart', related_name='in_users_cart'
+    )
 
     def __str__(self):
         return self.name
@@ -78,6 +83,18 @@ class FavoriteRecipe(models.Model):
     )
     recipe = models.ForeignKey(
         Recipe, on_delete=models.CASCADE, related_name='in_favorite'
+    )
+
+    class Meta:
+        unique_together = ('user', 'recipe')
+
+
+class ShoppingCart(models.Model):
+    user = models.ForeignKey(
+        User, on_delete=models.CASCADE, related_name='my_cart'
+    )
+    recipe = models.ForeignKey(
+        Recipe, on_delete=models.CASCADE, related_name='in_users_cart'
     )
 
     class Meta:

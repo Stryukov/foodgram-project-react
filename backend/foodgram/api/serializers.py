@@ -9,7 +9,7 @@ from djoser.serializers import SetPasswordSerializer \
     as BaseSetPasswordSerializer
 
 from recipes.models import Tag, Recipe, Ingredient, RecipeIngredient, \
-    User, Subscription, FavoriteRecipe
+    User, Subscription, FavoriteRecipe, ShoppingCart
 
 
 class UserSerializer(ModelSerializer):
@@ -96,6 +96,7 @@ class RecipeSerializer(ModelSerializer):
     author = UserSerializer()
     # image = Base64ImageField()
     is_favorited = SerializerMethodField()
+    is_in_shopping_cart = SerializerMethodField()
 
     class Meta:
         model = Recipe
@@ -105,6 +106,12 @@ class RecipeSerializer(ModelSerializer):
     def get_is_favorited(self, instance):
         request = self.context.get('request')
         return FavoriteRecipe.objects.filter(
+            recipe=instance, user=request.user
+        ).exists()
+
+    def get_is_in_shopping_cart(self, instance):
+        request = self.context.get('request')
+        return ShoppingCart.objects.filter(
             recipe=instance, user=request.user
         ).exists()
 
@@ -160,3 +167,23 @@ class FavoriteRecipeSerializer(ModelSerializer):
     class Meta:
         model = FavoriteRecipe
         fields = ('id', 'name', 'image', 'cooking_time')
+
+
+class ShopingCartSerializer(ModelSerializer):
+    id = ReadOnlyField(source='recipe.id')
+    name = ReadOnlyField(source='recipe.name')
+    image = URLField(
+        source='recipe.image.url', required=False, allow_null=True
+    )
+    cooking_time = ReadOnlyField(source='recipe.cooking_time')
+
+    class Meta:
+        model = ShoppingCart
+        fields = ('id', 'name', 'image', 'cooking_time')
+
+
+class RecipeCreateSerializer(ModelSerializer):
+
+    class Meta:
+        model = Recipe
+        fields = ('id', 'name', 'text', 'cooking_time', 'ingredients', 'tags')
