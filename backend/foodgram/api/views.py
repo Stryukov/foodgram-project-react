@@ -6,10 +6,10 @@ from rest_framework.response import Response
 from rest_framework import status
 from django_filters.rest_framework import DjangoFilterBackend
 
-from recipes.models import Tag, Recipe, Ingredient, User, Subscription
+from recipes.models import Tag, Recipe, Ingredient, User, Subscription, FavoriteRecipe
 from .serializers import TagSerializer, RecipeSerializer, \
     IngredientSerializer, SubscriptionSerializer, UserSerializer, \
-    UserCreateSerializer, SetPasswordSerializer
+    UserCreateSerializer, SetPasswordSerializer, FavoriteRecipeSerializer
 from .filters import RecipeFilter
 
 
@@ -50,13 +50,17 @@ class CustomUserViewSet(UserViewSet):
             )
             if serializer.is_valid():
                 serializer.save(author=author, subscriber=request.user)
-                return Response(serializer.data, status=status.HTTP_200_OK)
+                return Response(
+                    serializer.data, status=status.HTTP_201_CREATED
+                )
             else:
                 return Response(
                     serializer.errors, status=status.HTTP_400_BAD_REQUEST
                 )
         if request.method == 'DELETE':
-            subscribe = get_object_or_404(Subscription, author=author, subscriber=request.user)
+            subscribe = get_object_or_404(
+                Subscription, author=author, subscriber=request.user
+            )
             subscribe.delete()
             return Response(status=status.HTTP_204_NO_CONTENT)
 
@@ -96,3 +100,29 @@ class RecipesViewSet(ModelViewSet):
             'recipe_ingredients__ingredient', 'tags'
         ).all()
         return recipes
+
+    def get_serializer_context(self):
+        context = super().get_serializer_context()
+        context['request'] = self.request
+        return context
+
+    @action(detail=True, methods=['post', 'delete'])
+    def favorite(self, request, pk=None):
+        recipe = self.get_object()
+        if request.method == 'POST':
+            serializer = FavoriteRecipeSerializer(data=request.data)
+            if serializer.is_valid():
+                serializer.save(recipe=recipe, user=request.user)
+                return Response(
+                    serializer.data, status=status.HTTP_201_CREATED
+                )
+            else:
+                return Response(
+                    serializer.errors, status=status.HTTP_400_BAD_REQUEST
+                )
+        if request.method == 'DELETE':
+            subscribe = get_object_or_404(
+                FavoriteRecipe, recipe=recipe, user=request.user
+            )
+            subscribe.delete()
+            return Response(status=status.HTTP_204_NO_CONTENT)
