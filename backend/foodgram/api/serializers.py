@@ -1,7 +1,8 @@
 import base64
 
 from rest_framework.serializers import ModelSerializer, ImageField, \
-    CharField, ReadOnlyField, SerializerMethodField, URLField
+    CharField, ReadOnlyField, SerializerMethodField, URLField, \
+    PrimaryKeyRelatedField
 from django.core.files.base import ContentFile
 from djoser.serializers import UserCreateSerializer \
     as BaseUserCreateSerializer
@@ -77,15 +78,15 @@ class RecipeIngredientSerializer(ModelSerializer):
         fields = ('id', 'name', 'measurement_unit', 'amount')
 
 
-# class Base64ImageField(ImageField):
-#     def to_internal_value(self, data):
-#         if isinstance(data, str) and data.startswith('data:image'):
-#             format, imgstr = data.split(';base64,')
-#             ext = format.split('/')[-1]
+class Base64ImageField(ImageField):
+    def to_internal_value(self, data):
+        if isinstance(data, str) and data.startswith('data:image'):
+            format, imgstr = data.split(';base64,')
+            ext = format.split('/')[-1]
 
-#             data = ContentFile(base64.b64decode(imgstr), name='temp.' + ext)
+            data = ContentFile(base64.b64decode(imgstr), name='temp.' + ext)
 
-#         return super().to_internal_value(data)
+        return super().to_internal_value(data)
 
 
 class RecipeSerializer(ModelSerializer):
@@ -182,8 +183,39 @@ class ShopingCartSerializer(ModelSerializer):
         fields = ('id', 'name', 'image', 'cooking_time')
 
 
+class RecipeIngredientsCreateSerializer(ModelSerializer):
+    id = PrimaryKeyRelatedField(
+        source='ingredient',
+        queryset=Ingredient.objects.all(),
+    )
+
+    class Meta:
+        model = RecipeIngredient
+        fields = ('id', 'amount')
+
+
 class RecipeCreateSerializer(ModelSerializer):
+    ingredients = RecipeIngredientsCreateSerializer(
+        many=True, source='recipe_ingredients'
+    )
+    image = Base64ImageField()
 
     class Meta:
         model = Recipe
-        fields = ('id', 'name', 'text', 'cooking_time', 'ingredients', 'tags')
+        fields = ('id', 'name', 'text', 'cooking_time', 'ingredients', 'tags', 'image')
+
+    def create(self, validated_data):
+        ingredients = validated_data.pop('recipe_ingredients')
+        recipe = super().create(validated_data)
+        for ingredient_data in ingredients:
+            RecipeIngredient.objects.create(recipe=recipe, **ingredient_data)
+        return recipe
+
+    def update(self, instance, validated_data):
+        ingredients = validated_data.pop('recipe_ingredients')
+        super().update(instance, validated_data)
+        RecipeIngredient.objects.filter(recipe=instance).delete()
+        for ingredient_data in ingredients:
+            RecipeIngredient.objects.create(recipe=instance, **ingredient_data)
+        return instance
+        # return super().update(instance, validated_data)

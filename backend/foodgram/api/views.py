@@ -5,6 +5,7 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework import status
 from django_filters.rest_framework import DjangoFilterBackend
+from rest_framework import filters
 
 from recipes.models import Tag, Recipe, Ingredient, User, Subscription, \
     FavoriteRecipe, ShoppingCart
@@ -12,7 +13,7 @@ from .serializers import TagSerializer, RecipeSerializer, \
     IngredientSerializer, SubscriptionSerializer, UserSerializer, \
     UserCreateSerializer, SetPasswordSerializer, FavoriteRecipeSerializer, \
     ShopingCartSerializer, RecipeCreateSerializer
-from .filters import RecipeFilter
+from .filters import RecipeFilter, IngredientFilter
 
 
 def index(request):
@@ -82,6 +83,10 @@ class IngredientsViewSet(ModelViewSet):
     queryset = Ingredient.objects.all()
     serializer_class = IngredientSerializer
     pagination_class = None
+    filter_backends = [DjangoFilterBackend, filters.SearchFilter]
+    filterset_fields = ('name', )
+    search_fields = ('name',)
+    filterset_class = IngredientFilter
 
 
 class TagsViewSet(ModelViewSet):
@@ -150,10 +155,10 @@ class RecipesViewSet(ModelViewSet):
             subscribe.delete()
             return Response(status=status.HTTP_204_NO_CONTENT)
 
-    # def get_serializer(self):
-    #     if self.action in ['create', ]:
-    #         return RecipeCreateSerializer
-    #     return RecipeSerializer
+    def get_serializer_class(self):
+        if self.action in ['create', 'update', 'partial_update']:
+            return RecipeCreateSerializer
+        return RecipeSerializer
 
-    # def perform_create(self, serializer):
-    #     serializer.save(author=self.request.user)
+    def perform_create(self, serializer):
+        serializer.save(author=self.request.user)
