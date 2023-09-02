@@ -28,6 +28,7 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'rest_framework.authtoken',
     'rest_framework',
+    'django_filters',
     'djoser',
     'api.apps.ApiConfig',
     'recipes.apps.RecipesConfig',
@@ -130,6 +131,9 @@ REST_FRAMEWORK = {
 
 DJOSER = {
     'LOGIN_FIELD': 'email',
+    # 'SERIALIZERS': {
+    #     'set_password': 'api.serializers.SetPasswordSerializer',
+    # }
 }
 
 MEDIA_URL = '/media/'

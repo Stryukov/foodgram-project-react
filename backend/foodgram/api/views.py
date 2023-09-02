@@ -1,13 +1,16 @@
-from django.shortcuts import render, HttpResponse
+from django.shortcuts import render, HttpResponse, get_object_or_404
 from djoser.views import UserViewSet
 from rest_framework.viewsets import ModelViewSet
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework import status
+from django_filters.rest_framework import DjangoFilterBackend
 
-from recipes.models import Tag, Recipe, Ingredient
+from recipes.models import Tag, Recipe, Ingredient, User, Subscription
 from .serializers import TagSerializer, RecipeSerializer, \
-    IngredientSerializer, SubscriptionSerializer
+    IngredientSerializer, SubscriptionSerializer, UserSerializer, \
+    UserCreateSerializer, SetPasswordSerializer
+from .filters import RecipeFilter
 
 
 def index(request):
@@ -15,7 +18,8 @@ def index(request):
 
 
 class CustomUserViewSet(UserViewSet):
-    pass
+    queryset = User.objects.all()
+    serializer_class = UserSerializer
 
     @action(detail=False, methods=['get'])
     def subscriptions(self, request):
@@ -37,6 +41,36 @@ class CustomUserViewSet(UserViewSet):
         )
         return Response(serializer.data, status=status.HTTP_200_OK)
 
+    @action(detail=True, methods=['post', 'delete'])
+    def subscribe(self, request, id=None):
+        author = self.get_object()
+        if request.method == 'POST':
+            serializer = SubscriptionSerializer(
+                data=request.data, context={'request': request}
+            )
+            if serializer.is_valid():
+                serializer.save(author=author, subscriber=request.user)
+                return Response(serializer.data, status=status.HTTP_200_OK)
+            else:
+                return Response(
+                    serializer.errors, status=status.HTTP_400_BAD_REQUEST
+                )
+        if request.method == 'DELETE':
+            subscribe = get_object_or_404(Subscription, author=author, subscriber=request.user)
+            subscribe.delete()
+            return Response(status=status.HTTP_204_NO_CONTENT)
+
+    def get_serializer_class(self):
+        if self.action == 'create':
+            return UserCreateSerializer
+        if self.action == 'set_password':
+            return SetPasswordSerializer
+        return UserSerializer
+
+    def perform_create(self, serializer):
+        if self.action == 'set_password':
+            serializer.save(username=self.request.user.username)
+
 
 class IngredientsViewSet(ModelViewSet):
     queryset = Ingredient.objects.all()
@@ -53,6 +87,9 @@ class TagsViewSet(ModelViewSet):
 class RecipesViewSet(ModelViewSet):
     queryset = Recipe.objects.all()
     serializer_class = RecipeSerializer
+    filter_backends = (DjangoFilterBackend,)
+    filterset_fields = ('author', 'tags')
+    filterset_class = RecipeFilter
 
     def get_queryset(self):
         recipes = Recipe.objects.prefetch_related(
