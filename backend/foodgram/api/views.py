@@ -1,4 +1,4 @@
-from django.shortcuts import render, HttpResponse, get_object_or_404
+from django.shortcuts import get_object_or_404
 from djoser.views import UserViewSet
 from rest_framework.viewsets import ModelViewSet
 from rest_framework.decorators import action
@@ -6,6 +6,7 @@ from rest_framework.response import Response
 from rest_framework import status
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import filters
+from django.db.models import Sum
 
 from recipes.models import Tag, Recipe, Ingredient, User, Subscription, \
     FavoriteRecipe, ShoppingCart
@@ -14,10 +15,7 @@ from .serializers import TagSerializer, RecipeSerializer, \
     UserCreateSerializer, SetPasswordSerializer, FavoriteRecipeSerializer, \
     ShopingCartSerializer, RecipeCreateSerializer
 from .filters import RecipeFilter, IngredientFilter
-
-
-def index(request):
-    return HttpResponse('index')
+from recipes.utils import queryset_to_csv
 
 
 class CustomUserViewSet(UserViewSet):
@@ -162,3 +160,16 @@ class RecipesViewSet(ModelViewSet):
 
     def perform_create(self, serializer):
         serializer.save(author=self.request.user)
+
+    @action(detail=False, methods=['get', ])
+    def download_shopping_cart(self, request):
+        user = self.request.user
+        shoping_list = Ingredient.objects.filter(
+            recipe__in_users_cart__user=user
+            ).annotate(
+                total_amount=Sum('recipeingredient__amount')
+                ).order_by('name')
+        ingredients_list = list(shoping_list.values_list(
+            'name', 'total_amount', 'measurement_unit'
+        ))
+        return queryset_to_csv(ingredients_list)
