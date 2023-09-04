@@ -9,10 +9,10 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # See https://docs.djangoproject.com/en/3.2/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-2)g(%k-usmmsne+8sby!2-c=nv=ti@_f85h##2z=!6hzm+3eti'
+SECRET_KEY = os.getenv('SECRET_KEY', 'need some secret key')
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = os.getenv('DEBUG', 'False') == 'True'
 
 ALLOWED_HOSTS = ['localhost', '127.0.0.1']
 
@@ -71,8 +71,12 @@ WSGI_APPLICATION = 'foodgram.wsgi.application'
 
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'database/db.sqlite3',
+        'ENGINE': 'django.db.backends.postgresql',
+        'NAME': os.getenv('POSTGRES_DB', 'django'),
+        'USER': os.getenv('POSTGRES_USER', 'django'),
+        'PASSWORD': os.getenv('POSTGRES_PASSWORD', 'password'),
+        'HOST': os.getenv('DB_HOST', 'db'),
+        'PORT': os.getenv('DB_PORT', 5432)
     }
 }
 
@@ -127,13 +131,17 @@ REST_FRAMEWORK = {
     ),
     'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
     'PAGE_SIZE': 6,
+    'DEFAULT_PERMISSION_CLASSES': [
+        'rest_framework.permissions.IsAuthenticated',
+    ],
 }
 
 DJOSER = {
     'LOGIN_FIELD': 'email',
-    # 'SERIALIZERS': {
-    #     'set_password': 'api.serializers.SetPasswordSerializer',
-    # }
+    'HIDE_USERS': False,
+    'PERMISSIONS': {
+        'user': ['rest_framework.permissions.IsAuthenticated'],
+    },
 }
 
 MEDIA_URL = '/media/'

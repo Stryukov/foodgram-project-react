@@ -7,15 +7,17 @@ from rest_framework import status
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import filters
 from django.db.models import Sum
+from rest_framework.permissions import IsAuthenticatedOrReadOnly, AllowAny, IsAuthenticated
 
 from recipes.models import Tag, Recipe, Ingredient, User, Subscription, \
     FavoriteRecipe, ShoppingCart
 from .serializers import TagSerializer, RecipeSerializer, \
     IngredientSerializer, SubscriptionSerializer, UserSerializer, \
-    UserCreateSerializer, SetPasswordSerializer, FavoriteRecipeSerializer, \
-    ShopingCartSerializer, RecipeCreateSerializer
+    SetPasswordSerializer, FavoriteRecipeSerializer, \
+    ShopingCartSerializer, RecipeCreateSerializer, UserCreateSerializer
 from .filters import RecipeFilter, IngredientFilter
 from recipes.utils import queryset_to_csv
+from recipes.permissions import IsOwnerOrReadOnly, IsAdmin, ReadOnly
 
 
 class CustomUserViewSet(UserViewSet):
@@ -72,9 +74,11 @@ class CustomUserViewSet(UserViewSet):
             return SetPasswordSerializer
         return UserSerializer
 
-    def perform_create(self, serializer):
+    def perform_create(self, serializer, *args, **kwargs):
         if self.action == 'set_password':
             serializer.save(username=self.request.user.username)
+        else:
+            return super().perform_create(serializer, *args, **kwargs)
 
 
 class IngredientsViewSet(ModelViewSet):
@@ -85,20 +89,22 @@ class IngredientsViewSet(ModelViewSet):
     filterset_fields = ('name', )
     search_fields = ('name',)
     filterset_class = IngredientFilter
+    permission_classes = (IsOwnerOrReadOnly,)
 
 
 class TagsViewSet(ModelViewSet):
     queryset = Tag.objects.all()
     serializer_class = TagSerializer
     pagination_class = None
+    permission_classes = (IsOwnerOrReadOnly,)
 
 
 class RecipesViewSet(ModelViewSet):
     queryset = Recipe.objects.all()
     serializer_class = RecipeSerializer
     filter_backends = (DjangoFilterBackend,)
-    filterset_fields = ('author', 'tags')
     filterset_class = RecipeFilter
+    permission_classes = (IsOwnerOrReadOnly,)
 
     def get_queryset(self):
         recipes = Recipe.objects.prefetch_related(
@@ -111,7 +117,11 @@ class RecipesViewSet(ModelViewSet):
         context['request'] = self.request
         return context
 
-    @action(detail=True, methods=['post', 'delete'])
+    @action(
+            detail=True,
+            methods=['post', 'delete'],
+            permission_classes=(IsAuthenticated,),
+    )
     def favorite(self, request, pk=None):
         recipe = self.get_object()
         if request.method == 'POST':
@@ -132,7 +142,11 @@ class RecipesViewSet(ModelViewSet):
             subscribe.delete()
             return Response(status=status.HTTP_204_NO_CONTENT)
 
-    @action(detail=True, methods=['post', 'delete'])
+    @action(
+            detail=True,
+            methods=['post', 'delete'],
+            permission_classes=(IsAuthenticated,),
+    )
     def shopping_cart(self, request, pk=None):
         recipe = self.get_object()
         if request.method == 'POST':
@@ -161,7 +175,11 @@ class RecipesViewSet(ModelViewSet):
     def perform_create(self, serializer):
         serializer.save(author=self.request.user)
 
-    @action(detail=False, methods=['get', ])
+    @action(
+            detail=False,
+            methods=['get', ],
+            permission_classes=(IsAuthenticated,)
+    )
     def download_shopping_cart(self, request):
         user = self.request.user
         shoping_list = Ingredient.objects.filter(
@@ -173,3 +191,8 @@ class RecipesViewSet(ModelViewSet):
             'name', 'total_amount', 'measurement_unit'
         ))
         return queryset_to_csv(ingredients_list)
+
+    def get_permissions(self):
+        if self.action == 'retrieve':
+            return (ReadOnly(),)
+        return super().get_permissions()
