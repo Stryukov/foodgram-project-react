@@ -1,4 +1,3 @@
-from django.shortcuts import get_object_or_404
 from djoser.views import UserViewSet
 from rest_framework.viewsets import ModelViewSet
 from rest_framework.decorators import action
@@ -7,7 +6,8 @@ from rest_framework import status
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import filters
 from django.db.models import Sum
-from rest_framework.permissions import IsAuthenticatedOrReadOnly, AllowAny, IsAuthenticated
+from django.db import IntegrityError
+from rest_framework.permissions import AllowAny, IsAuthenticated
 
 from recipes.models import Tag, Recipe, Ingredient, User, Subscription, \
     FavoriteRecipe, ShoppingCart
@@ -17,14 +17,18 @@ from .serializers import TagSerializer, RecipeSerializer, \
     ShopingCartSerializer, RecipeCreateSerializer, UserCreateSerializer
 from .filters import RecipeFilter, IngredientFilter
 from recipes.utils import queryset_to_csv
-from recipes.permissions import IsOwnerOrReadOnly, IsAdmin, ReadOnly
+from recipes.permissions import IsOwnerOrAdminOrReadOnly, ReadOnly
 
 
 class CustomUserViewSet(UserViewSet):
     queryset = User.objects.all()
     serializer_class = UserSerializer
 
-    @action(detail=False, methods=['get'])
+    @action(
+            detail=False,
+            methods=['get'],
+            permission_classes=(IsAuthenticated,)
+    )
     def subscriptions(self, request):
         writers = self.request.user.writers.all()
 
@@ -44,26 +48,38 @@ class CustomUserViewSet(UserViewSet):
         )
         return Response(serializer.data, status=status.HTTP_200_OK)
 
-    @action(detail=True, methods=['post', 'delete'])
+    @action(
+            detail=True,
+            methods=['post', 'delete'],
+            permission_classes=(IsAuthenticated,)
+    )
     def subscribe(self, request, id=None):
         author = self.get_object()
+
         if request.method == 'POST':
-            serializer = SubscriptionSerializer(
-                data=request.data, context={'request': request}
-            )
-            if serializer.is_valid():
-                serializer.save(author=author, subscriber=request.user)
-                return Response(
-                    serializer.data, status=status.HTTP_201_CREATED
+            try:
+                serializer = SubscriptionSerializer(
+                    data=request.data, context={'request': request}
                 )
-            else:
+                if serializer.is_valid():
+                    serializer.save(author=author, subscriber=request.user)
+                    return Response(
+                        serializer.data, status=status.HTTP_201_CREATED
+                    )
+            except IntegrityError as error:
                 return Response(
-                    serializer.errors, status=status.HTTP_400_BAD_REQUEST
+                    {'errors': str(error)}, status=status.HTTP_400_BAD_REQUEST
                 )
+
         if request.method == 'DELETE':
-            subscribe = get_object_or_404(
-                Subscription, author=author, subscriber=request.user
-            )
+            try:
+                subscribe = Subscription.objects.get(
+                    author=author, subscriber=request.user
+                )
+            except Subscription.DoesNotExist as error:
+                return Response(
+                    {'errors': str(error)}, status=status.HTTP_400_BAD_REQUEST
+                )
             subscribe.delete()
             return Response(status=status.HTTP_204_NO_CONTENT)
 
@@ -89,14 +105,14 @@ class IngredientsViewSet(ModelViewSet):
     filterset_fields = ('name', )
     search_fields = ('name',)
     filterset_class = IngredientFilter
-    permission_classes = (IsOwnerOrReadOnly,)
+    permission_classes = (IsOwnerOrAdminOrReadOnly,)
 
 
 class TagsViewSet(ModelViewSet):
     queryset = Tag.objects.all()
     serializer_class = TagSerializer
     pagination_class = None
-    permission_classes = (IsOwnerOrReadOnly,)
+    permission_classes = (AllowAny,)
 
 
 class RecipesViewSet(ModelViewSet):
@@ -104,7 +120,7 @@ class RecipesViewSet(ModelViewSet):
     serializer_class = RecipeSerializer
     filter_backends = [DjangoFilterBackend]
     filterset_class = RecipeFilter
-    permission_classes = (IsOwnerOrReadOnly,)
+    permission_classes = (IsOwnerOrAdminOrReadOnly,)
 
     def get_queryset(self):
         recipes = Recipe.objects.prefetch_related(
@@ -124,22 +140,30 @@ class RecipesViewSet(ModelViewSet):
     )
     def favorite(self, request, pk=None):
         recipe = self.get_object()
+
         if request.method == 'POST':
-            serializer = FavoriteRecipeSerializer(data=request.data)
-            if serializer.is_valid():
-                serializer.save(recipe=recipe, user=request.user)
+            try:
+                serializer = FavoriteRecipeSerializer(data=request.data)
+                if serializer.is_valid():
+                    serializer.save(recipe=recipe, user=request.user)
+                    return Response(
+                        serializer.data, status=status.HTTP_201_CREATED
+                    )
+            except IntegrityError as error:
                 return Response(
-                    serializer.data, status=status.HTTP_201_CREATED
+                    {'errors': str(error)}, status=status.HTTP_400_BAD_REQUEST
                 )
-            else:
-                return Response(
-                    serializer.errors, status=status.HTTP_400_BAD_REQUEST
-                )
+
         if request.method == 'DELETE':
-            subscribe = get_object_or_404(
-                FavoriteRecipe, recipe=recipe, user=request.user
-            )
-            subscribe.delete()
+            try:
+                favorite = FavoriteRecipe.objects.get(
+                    recipe=recipe, user=request.user
+                )
+            except FavoriteRecipe.DoesNotExist as error:
+                return Response(
+                    {'errors': str(error)}, status=status.HTTP_400_BAD_REQUEST
+                )
+            favorite.delete()
             return Response(status=status.HTTP_204_NO_CONTENT)
 
     @action(
@@ -149,22 +173,30 @@ class RecipesViewSet(ModelViewSet):
     )
     def shopping_cart(self, request, pk=None):
         recipe = self.get_object()
-        if request.method == 'POST':
-            serializer = ShopingCartSerializer(data=request.data)
-            if serializer.is_valid():
-                serializer.save(recipe=recipe, user=request.user)
-                return Response(
-                    serializer.data, status=status.HTTP_201_CREATED
-                )
-            else:
-                return Response(
-                    serializer.errors, status=status.HTTP_400_BAD_REQUEST
-                )
-        if request.method == 'DELETE':
-            subscribe = get_object_or_404(
-                ShoppingCart, recipe=recipe, user=request.user
+
+        try:
+            if request.method == 'POST':
+                serializer = ShopingCartSerializer(data=request.data)
+                if serializer.is_valid():
+                    serializer.save(recipe=recipe, user=request.user)
+                    return Response(
+                        serializer.data, status=status.HTTP_201_CREATED
+                    )
+        except IntegrityError as error:
+            return Response(
+                {'errors': str(error)}, status=status.HTTP_400_BAD_REQUEST
             )
-            subscribe.delete()
+
+        if request.method == 'DELETE':
+            try:
+                shoping_cart = ShoppingCart.objects.get(
+                    recipe=recipe, user=request.user
+                )
+            except ShoppingCart.DoesNotExist as error:
+                return Response(
+                    {'errors': str(error)}, status=status.HTTP_400_BAD_REQUEST
+                )
+            shoping_cart.delete()
             return Response(status=status.HTTP_204_NO_CONTENT)
 
     def get_serializer_class(self):
