@@ -21,7 +21,7 @@ services:
   nginx:
     image: strkv/foodgram_gateway
     ports:
-      - "80:80"
+      - 8000:80
     volumes:
       - static:/usr/share/nginx/html/
       - media:/usr/share/nginx/html/media/

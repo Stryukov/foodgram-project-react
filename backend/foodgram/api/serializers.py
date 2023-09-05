@@ -98,6 +98,9 @@ class RecipeSerializer(ModelSerializer):
     author = UserSerializer()
     is_favorited = SerializerMethodField()
     is_in_shopping_cart = SerializerMethodField()
+    image = URLField(
+        source='image.url', required=False, allow_null=True
+    )
 
     class Meta:
         model = Recipe
@@ -122,6 +125,9 @@ class RecipeSerializer(ModelSerializer):
 
 
 class SubscriptionRecipeSerializer(ModelSerializer):
+    image = URLField(
+        source='image.url', required=False, allow_null=True
+    )
 
     class Meta:
         model = Recipe

@@ -12,13 +12,20 @@
 
 ## Demo
 
-URL: [https://foodgram.com](https://foodgram.com) 
+URL front: [https://foodgram.com](https://foodgram.com) 
 
-login: admin
+URL admin panel: [https://foodgram.com/admin](https://foodgram.com/admin)
 
-password: a
+Admin:
+- login: admin
+- email: admin@mail.com
+- password: a
 
-admin panel: [https://foodgram.com/admin](https://foodgram.com/admin)
+User:
+- login: ivan
+- email: ivan@mail.com
+- password: 000000Qq
+
 
 ## Deployment
 
