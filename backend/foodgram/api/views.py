@@ -25,9 +25,9 @@ class CustomUserViewSet(UserViewSet):
     serializer_class = UserSerializer
 
     @action(
-            detail=False,
-            methods=['get'],
-            permission_classes=(IsAuthenticated,)
+        detail=False,
+        methods=['get'],
+        permission_classes=(IsAuthenticated,)
     )
     def subscriptions(self, request):
         writers = self.request.user.writers.all()
@@ -49,9 +49,9 @@ class CustomUserViewSet(UserViewSet):
         return Response(serializer.data, status=status.HTTP_200_OK)
 
     @action(
-            detail=True,
-            methods=['post', 'delete'],
-            permission_classes=(IsAuthenticated,)
+        detail=True,
+        methods=['post', 'delete'],
+        permission_classes=(IsAuthenticated,)
     )
     def subscribe(self, request, id=None):
         author = self.get_object()
@@ -134,9 +134,9 @@ class RecipesViewSet(ModelViewSet):
         return context
 
     @action(
-            detail=True,
-            methods=['post', 'delete'],
-            permission_classes=(IsAuthenticated,),
+        detail=True,
+        methods=['post', 'delete'],
+        permission_classes=(IsAuthenticated,),
     )
     def favorite(self, request, pk=None):
         recipe = self.get_object()
@@ -167,9 +167,9 @@ class RecipesViewSet(ModelViewSet):
             return Response(status=status.HTTP_204_NO_CONTENT)
 
     @action(
-            detail=True,
-            methods=['post', 'delete'],
-            permission_classes=(IsAuthenticated,),
+        detail=True,
+        methods=['post', 'delete'],
+        permission_classes=(IsAuthenticated,),
     )
     def shopping_cart(self, request, pk=None):
         recipe = self.get_object()
@@ -208,17 +208,17 @@ class RecipesViewSet(ModelViewSet):
         serializer.save(author=self.request.user)
 
     @action(
-            detail=False,
-            methods=['get', ],
-            permission_classes=(IsAuthenticated,)
+        detail=False,
+        methods=['get', ],
+        permission_classes=(IsAuthenticated,)
     )
     def download_shopping_cart(self, request):
         user = self.request.user
         shoping_list = Ingredient.objects.filter(
             recipe__in_users_cart__user=user
-            ).annotate(
-                total_amount=Sum('recipeingredient__amount')
-                ).order_by('name')
+        ).annotate(
+            total_amount=Sum('recipeingredient__amount')
+        ).order_by('name')
         ingredients_list = list(shoping_list.values_list(
             'name', 'total_amount', 'measurement_unit'
         ))

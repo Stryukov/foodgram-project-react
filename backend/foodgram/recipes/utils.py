@@ -3,6 +3,9 @@ from django.http import HttpResponse
 
 
 def queryset_to_csv(ingredients_list):
+    """
+    Конвертация queryset в csv для экспорта ингредиентов.
+    """
     response = HttpResponse(
         content_type='text/csv',
         headers={

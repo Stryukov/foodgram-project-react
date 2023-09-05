@@ -2,12 +2,16 @@ FROM python:3.9
 
 WORKDIR /app
 
+RUN apt-get update && apt-get install -y netcat-openbsd
+
 RUN pip install gunicorn==20.1.0
 
 COPY /foodgram/requirements.txt .
-
 RUN pip install -r requirements.txt
 
 COPY ./foodgram .
+COPY ./entrypoint.sh .
 
-CMD ["gunicorn", "--bind", "0.0.0.0:8000", "foodgram.wsgi"]
+RUN chmod +x entrypoint.sh
+
+ENTRYPOINT ["/app/entrypoint.sh"]
