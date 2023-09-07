@@ -12,9 +12,9 @@
 
 ## Demo
 
-URL front: [https://foodgram.com](https://foodgram.com) 
+URL front: [https://foodgram-55.hopto.org](https://foodgram-55.hopto.org) 
 
-URL admin panel: [https://foodgram.com/admin](https://foodgram.com/admin)
+URL admin panel: [https://foodgram-55.hopto.org/admin](https://foodgram-55.hopto.org/admin)
 
 Admin:
 - login: admin
