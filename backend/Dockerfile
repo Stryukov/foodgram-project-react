@@ -6,10 +6,10 @@ RUN apt-get update && apt-get install -y netcat-openbsd
 
 RUN pip install gunicorn==20.1.0
 
-COPY /foodgram/requirements.txt .
+COPY requirements.txt .
 RUN pip install -r requirements.txt
 
-COPY ./foodgram .
+COPY . .
 COPY ./entrypoint.sh .
 
 RUN chmod +x entrypoint.sh

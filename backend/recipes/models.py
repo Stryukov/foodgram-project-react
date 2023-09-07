@@ -1,22 +1,29 @@
 from django.db import models
 from django.contrib.auth import get_user_model
+from django.conf import settings
 
 
 User = get_user_model()
 
 
 class Tag(models.Model):
-    name = models.CharField(max_length=200)
+    name = models.CharField(max_length=settings.FIELD_SIZE)
     color = models.CharField(max_length=7)
-    slug = models.SlugField(max_length=200, unique=True)
+    slug = models.SlugField(max_length=settings.FIELD_SIZE, unique=True)
 
     def __str__(self):
         return self.name
 
 
 class Ingredient(models.Model):
-    name = models.CharField(max_length=200)
-    measurement_unit = models.CharField(max_length=200)
+    name = models.CharField(max_length=settings.FIELD_SIZE)
+    measurement_unit = models.CharField(max_length=settings.FIELD_SIZE)
+
+    class Meta:
+        ordering = ['name']
+        indexes = [
+            models.Index(fields=['name'])
+        ]
 
     def __str__(self):
         return self.name
@@ -31,9 +38,9 @@ class Recipe(models.Model):
         Ingredient, through='RecipeIngredient'
     )
     image = models.ImageField(upload_to='images')
-    name = models.CharField(max_length=200)
+    name = models.CharField(max_length=settings.FIELD_SIZE)
     text = models.TextField()
-    cooking_time = models.PositiveIntegerField()
+    cooking_time = models.PositiveSmallIntegerField()
     is_favorited = models.ManyToManyField(
         User, through='FavoriteRecipe', related_name='in_favorite'
     )
@@ -50,7 +57,7 @@ class RecipeIngredient(models.Model):
         Recipe, related_name='recipe_ingredients', on_delete=models.CASCADE
     )
     ingredient = models.ForeignKey(Ingredient, on_delete=models.CASCADE)
-    amount = models.PositiveIntegerField()
+    amount = models.PositiveSmallIntegerField()
 
 
 class Subscription(models.Model):

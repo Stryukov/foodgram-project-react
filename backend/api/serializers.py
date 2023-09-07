@@ -14,6 +14,9 @@ from recipes.models import Tag, Recipe, Ingredient, RecipeIngredient, \
 
 
 class UserSerializer(ModelSerializer):
+    """
+    Для обработки моделя пользователей.
+    """
     is_subscribed = SerializerMethodField()
 
     class Meta:
@@ -28,15 +31,24 @@ class UserSerializer(ModelSerializer):
         )
 
     def get_is_subscribed(self, instance):
+        """
+        Возвращает статус подписки текущего пользователя.
+        """
         request = self.context.get('request')
         if request.user.is_anonymous:
             return False
-        return Subscription.objects.filter(
-            author=instance, subscriber=request.user
-        ).exists()
+        return (
+            Subscription.objects.filter(
+                author=instance, subscriber=request.user
+            ).exists()
+            and request.user.is_anonymous
+        )
 
 
 class UserCreateSerializer(BaseUserCreateSerializer):
+    """
+    Для создания пользователя.
+    """
 
     class Meta:
         model = User
@@ -46,6 +58,9 @@ class UserCreateSerializer(BaseUserCreateSerializer):
 
 
 class SetPasswordSerializer(BaseSetPasswordSerializer):
+    """
+    Для изменения пароля.
+    """
 
     class Meta:
         model = User
@@ -56,6 +71,9 @@ class SetPasswordSerializer(BaseSetPasswordSerializer):
 
 
 class TagSerializer(ModelSerializer):
+    """
+    Для обработке запросов модели тегов.
+    """
 
     class Meta:
         model = Tag
@@ -63,6 +81,9 @@ class TagSerializer(ModelSerializer):
 
 
 class IngredientSerializer(ModelSerializer):
+    """
+    Обработка запросов по ингредиентам.
+    """
 
     class Meta:
         model = Ingredient
@@ -70,6 +91,9 @@ class IngredientSerializer(ModelSerializer):
 
 
 class RecipeIngredientSerializer(ModelSerializer):
+    """
+    Для получения данных из связаной таблицы рецептов и ингредиентов.
+    """
     id = ReadOnlyField(source='ingredient.id')
     name = CharField(source='ingredient.name')
     measurement_unit = CharField(source='ingredient.measurement_unit')
@@ -80,6 +104,9 @@ class RecipeIngredientSerializer(ModelSerializer):
 
 
 class Base64ImageField(ImageField):
+    """
+    Для загрузки изображения рецепта.
+    """
     def to_internal_value(self, data):
         if isinstance(data, str) and data.startswith('data:image'):
             format, imgstr = data.split(';base64,')
@@ -91,6 +118,9 @@ class Base64ImageField(ImageField):
 
 
 class RecipeSerializer(ModelSerializer):
+    """
+    Обработка запросов по рецептам.
+    """
     tags = TagSerializer(many=True)
     ingredients = RecipeIngredientSerializer(
         many=True, source='recipe_ingredients'
@@ -108,6 +138,9 @@ class RecipeSerializer(ModelSerializer):
         read_only_fields = ('author',)
 
     def get_is_favorited(self, instance):
+        """
+        Возвращает статус избранного рецепта.
+        """
         request = self.context.get('request')
         if request.user.is_anonymous:
             return False
@@ -116,6 +149,9 @@ class RecipeSerializer(ModelSerializer):
         ).exists()
 
     def get_is_in_shopping_cart(self, instance):
+        """
+        Возвращает статус рецепта в корзине.
+        """
         request = self.context.get('request')
         if request.user.is_anonymous:
             return False
@@ -125,6 +161,9 @@ class RecipeSerializer(ModelSerializer):
 
 
 class SubscriptionRecipeSerializer(ModelSerializer):
+    """
+    Обработка запросов по подпискам и связаной модели рецептов.
+    """
     image = URLField(
         source='image.url', required=False, allow_null=True
     )
@@ -135,12 +174,15 @@ class SubscriptionRecipeSerializer(ModelSerializer):
 
 
 class SubscriptionSerializer(ModelSerializer):
+    """
+    Обработка запросов по подпискам на авторов рецептов.
+    """
     email = ReadOnlyField(source='author.email')
     id = ReadOnlyField(source='author.id')
     username = ReadOnlyField(source='author.username')
     first_name = ReadOnlyField(source='author.first_name')
     last_name = ReadOnlyField(source='author.last_name')
-    is_subscribed = SerializerMethodField()
+    is_subscribed = ReadOnlyField(source='author.is_subscribed')
     recipes = SubscriptionRecipeSerializer(
         many=True, source='author.recipes', required=False
     )
@@ -159,15 +201,17 @@ class SubscriptionSerializer(ModelSerializer):
             'recipes_count',
         )
 
-    def get_is_subscribed(self, instance):
-        request = self.context.get('request')
-        return instance.subscriber == request.user
-
     def get_recipes_count(self, instance):
+        """
+        Подсчет количеста рецептов автора
+        """
         return instance.author.recipes.count()
 
 
 class FavoriteRecipeSerializer(ModelSerializer):
+    """
+    Обработка запросов избранных рецептов.
+    """
     id = ReadOnlyField(source='recipe.id')
     name = ReadOnlyField(source='recipe.name')
     image = URLField(
@@ -181,6 +225,9 @@ class FavoriteRecipeSerializer(ModelSerializer):
 
 
 class ShopingCartSerializer(ModelSerializer):
+    """
+    Обработка запросов рцептов в корзине.
+    """
     id = ReadOnlyField(source='recipe.id')
     name = ReadOnlyField(source='recipe.name')
     image = URLField(
@@ -194,6 +241,9 @@ class ShopingCartSerializer(ModelSerializer):
 
 
 class RecipeIngredientsCreateSerializer(ModelSerializer):
+    """
+    Для обработки связанной таблици ингредиентов при создании рецепта.
+    """
     id = PrimaryKeyRelatedField(
         source='ingredient',
         queryset=Ingredient.objects.all(),
@@ -205,6 +255,9 @@ class RecipeIngredientsCreateSerializer(ModelSerializer):
 
 
 class RecipeCreateSerializer(ModelSerializer):
+    """
+    Обработка запроса на создание рецепта.
+    """
     ingredients = RecipeIngredientsCreateSerializer(
         many=True, source='recipe_ingredients'
     )
@@ -223,6 +276,10 @@ class RecipeCreateSerializer(ModelSerializer):
         )
 
     def create(self, validated_data):
+        """
+        Переопределен метод, т.к. джанго не умеет добавлять записи
+        в связанные модели.
+        """
         ingredients = validated_data.pop('recipe_ingredients')
         recipe = super().create(validated_data)
         for ingredient_data in ingredients:
@@ -230,6 +287,10 @@ class RecipeCreateSerializer(ModelSerializer):
         return recipe
 
     def update(self, instance, validated_data):
+        """
+        Переопределен метод, т.к. джанго не умеет добавлять записи
+        в связанные модели.
+        """
         ingredients = validated_data.pop('recipe_ingredients')
         super().update(instance, validated_data)
         RecipeIngredient.objects.filter(recipe=instance).delete()

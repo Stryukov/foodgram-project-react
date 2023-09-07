@@ -133,3 +133,4 @@ dmypy.json
 
 # misc
 data/db_scheme.txt
+backend/media/images

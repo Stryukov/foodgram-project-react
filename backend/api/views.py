@@ -17,7 +17,7 @@ from .serializers import TagSerializer, RecipeSerializer, \
     ShopingCartSerializer, RecipeCreateSerializer, UserCreateSerializer
 from .filters import RecipeFilter, IngredientFilter
 from recipes.utils import queryset_to_csv
-from recipes.permissions import IsOwnerOrAdminOrReadOnly, ReadOnly
+from .permissions import IsOwnerOrAdminOrReadOnly, ReadOnly
 
 
 class CustomUserViewSet(UserViewSet):
@@ -116,7 +116,6 @@ class TagsViewSet(ModelViewSet):
 
 
 class RecipesViewSet(ModelViewSet):
-    queryset = Recipe.objects.all()
     serializer_class = RecipeSerializer
     filter_backends = [DjangoFilterBackend]
     filterset_class = RecipeFilter
@@ -142,29 +141,12 @@ class RecipesViewSet(ModelViewSet):
         recipe = self.get_object()
 
         if request.method == 'POST':
-            try:
-                serializer = FavoriteRecipeSerializer(data=request.data)
-                if serializer.is_valid():
-                    serializer.save(recipe=recipe, user=request.user)
-                    return Response(
-                        serializer.data, status=status.HTTP_201_CREATED
-                    )
-            except IntegrityError as error:
-                return Response(
-                    {'errors': str(error)}, status=status.HTTP_400_BAD_REQUEST
-                )
+            return self.add_related_entry(
+                request, recipe, FavoriteRecipeSerializer
+            )
 
         if request.method == 'DELETE':
-            try:
-                favorite = FavoriteRecipe.objects.get(
-                    recipe=recipe, user=request.user
-                )
-            except FavoriteRecipe.DoesNotExist as error:
-                return Response(
-                    {'errors': str(error)}, status=status.HTTP_400_BAD_REQUEST
-                )
-            favorite.delete()
-            return Response(status=status.HTTP_204_NO_CONTENT)
+            return self.delete_related_entry(request, recipe, FavoriteRecipe)
 
     @action(
         detail=True,
@@ -174,30 +156,13 @@ class RecipesViewSet(ModelViewSet):
     def shopping_cart(self, request, pk=None):
         recipe = self.get_object()
 
-        try:
-            if request.method == 'POST':
-                serializer = ShopingCartSerializer(data=request.data)
-                if serializer.is_valid():
-                    serializer.save(recipe=recipe, user=request.user)
-                    return Response(
-                        serializer.data, status=status.HTTP_201_CREATED
-                    )
-        except IntegrityError as error:
-            return Response(
-                {'errors': str(error)}, status=status.HTTP_400_BAD_REQUEST
+        if request.method == 'POST':
+            return self.add_related_entry(
+                request, recipe, ShopingCartSerializer
             )
 
         if request.method == 'DELETE':
-            try:
-                shoping_cart = ShoppingCart.objects.get(
-                    recipe=recipe, user=request.user
-                )
-            except ShoppingCart.DoesNotExist as error:
-                return Response(
-                    {'errors': str(error)}, status=status.HTTP_400_BAD_REQUEST
-                )
-            shoping_cart.delete()
-            return Response(status=status.HTTP_204_NO_CONTENT)
+            return self.delete_related_entry(request, recipe, ShoppingCart)
 
     def get_serializer_class(self):
         if self.action in ['create', 'update', 'partial_update']:
@@ -228,3 +193,35 @@ class RecipesViewSet(ModelViewSet):
         if self.action == 'retrieve':
             return (ReadOnly(),)
         return super().get_permissions()
+
+    def delete_related_entry(self, request, recipe, related_model):
+        """
+        Удаляем запись из связанной модели.
+        """
+        try:
+            instance = related_model.objects.get(
+                recipe=recipe, user=request.user
+            )
+            print(instance)
+        except related_model.DoesNotExist as error:
+            return Response(
+                {'errors': str(error)}, status=status.HTTP_400_BAD_REQUEST
+            )
+        instance.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+    def add_related_entry(self, request, recipe, serializer):
+        """
+        Добавляем запись в связанную модель.
+        """
+        try:
+            serializer = serializer(data=request.data)
+            if serializer.is_valid():
+                serializer.save(recipe=recipe, user=request.user)
+                return Response(
+                    serializer.data, status=status.HTTP_201_CREATED
+                )
+        except IntegrityError as error:
+            return Response(
+                {'errors': str(error)}, status=status.HTTP_400_BAD_REQUEST
+            )
