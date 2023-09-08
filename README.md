@@ -21,9 +21,14 @@ Admin:
 - email: admin@mail.com
 - password: a
 
-User:
+User1:
 - login: ivan
 - email: ivan@mail.com
+- password: 000000Qq
+
+User2:
+- login: boris
+- email: boris@mail.com
 - password: 000000Qq
 
 
@@ -32,7 +37,7 @@ User:
 Клонируй проект
 
 ```bash
-  git clone https://link-to-project
+  git clone git@github.com:Stryukov/foodgram-project-react.git
 ```
 Переходи в каталог проекта
 

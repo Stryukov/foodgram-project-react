@@ -202,7 +202,6 @@ class RecipesViewSet(ModelViewSet):
             instance = related_model.objects.get(
                 recipe=recipe, user=request.user
             )
-            print(instance)
         except related_model.DoesNotExist as error:
             return Response(
                 {'errors': str(error)}, status=status.HTTP_400_BAD_REQUEST
