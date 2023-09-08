@@ -30,6 +30,11 @@ class CustomUserViewSet(UserViewSet):
         permission_classes=(IsAuthenticated,)
     )
     def subscriptions(self, request):
+        """
+        Получение списка авторов рецептов,
+        на которых подписан пользователь их рецепты.
+        """
+        limit_recipes = int(request.GET.get('recipes_limit', 0))
         writers = self.request.user.writers.all()
 
         page = self.paginate_queryset(writers)
@@ -39,14 +44,26 @@ class CustomUserViewSet(UserViewSet):
                 many=True,
                 context={'request': request}
             )
-            return self.get_paginated_response(serializer.data)
+            paginated_data = self.get_paginated_response(serializer.data).data
+
+            return self.limit_recipes(paginated_data, limit_recipes)
 
         serializer = SubscriptionSerializer(
             writers,
             many=True,
             context={'request': request}
         )
-        return Response(serializer.data, status=status.HTTP_200_OK)
+
+        return self.limit_recipes(serializer.data, limit_recipes)
+
+    def limit_recipes(self, data, limit):
+        """
+        Ограничение количесва рецептов в выводе.
+        """
+        for result in data['results']:
+            result['recipes'] = result['recipes'][:limit]
+
+        return Response(data, status=status.HTTP_200_OK)
 
     @action(
         detail=True,
@@ -54,6 +71,9 @@ class CustomUserViewSet(UserViewSet):
         permission_classes=(IsAuthenticated,)
     )
     def subscribe(self, request, id=None):
+        """
+        Подписка/отписка на автора рецептов.
+        """
         author = self.get_object()
 
         if request.method == 'POST':
