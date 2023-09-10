@@ -18,11 +18,13 @@ from .serializers import TagSerializer, RecipeSerializer, \
 from .filters import RecipeFilter, IngredientFilter
 from recipes.utils import queryset_to_csv
 from .permissions import IsOwnerOrAdminOrReadOnly, ReadOnly
+from .pagination import CustomPagination
 
 
 class CustomUserViewSet(UserViewSet):
     queryset = User.objects.all()
     serializer_class = UserSerializer
+    pagination_class = CustomPagination
 
     @action(
         detail=False,
@@ -140,6 +142,7 @@ class RecipesViewSet(ModelViewSet):
     filter_backends = [DjangoFilterBackend]
     filterset_class = RecipeFilter
     permission_classes = (IsOwnerOrAdminOrReadOnly,)
+    pagination_class = CustomPagination
 
     def get_queryset(self):
         recipes = Recipe.objects.prefetch_related(

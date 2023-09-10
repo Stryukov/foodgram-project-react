@@ -2,7 +2,7 @@ import base64
 
 from rest_framework.serializers import ModelSerializer, ImageField, \
     CharField, ReadOnlyField, SerializerMethodField, URLField, \
-    PrimaryKeyRelatedField
+    PrimaryKeyRelatedField, ValidationError
 from django.core.files.base import ContentFile
 from djoser.serializers import UserCreateSerializer \
     as BaseUserCreateSerializer
@@ -41,7 +41,7 @@ class UserSerializer(ModelSerializer):
             Subscription.objects.filter(
                 author=instance, subscriber=request.user
             ).exists()
-            and request.user.is_anonymous
+            and request.user.is_authenticated
         )
 
 
@@ -297,3 +297,21 @@ class RecipeCreateSerializer(ModelSerializer):
         for ingredient_data in ingredients:
             RecipeIngredient.objects.create(recipe=instance, **ingredient_data)
         return instance
+
+    def validate_ingredients(self, value):
+        """
+        Валидация ингредиентов. Рецепт не может быть без ингредиентов.
+        """
+        if not value:
+            raise ValidationError('Добавьте ингредиенты.')
+        return value
+
+    def validate_cooking_time(self, value):
+        """
+        Валидация времени готовки. Не должно быть нулем.
+        """
+        if not value:
+            raise ValidationError(
+                'Время приготовления должно быть больше нуля.'
+            )
+        return value

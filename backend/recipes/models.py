@@ -47,6 +47,10 @@ class Recipe(models.Model):
     is_in_shopping_cart = models.ManyToManyField(
         User, through='ShoppingCart', related_name='in_users_cart'
     )
+    publish_date = models.DateTimeField('Дата публикации', auto_now_add=True)
+
+    class Meta:
+        ordering = ['-publish_date']
 
     def __str__(self):
         return self.name
