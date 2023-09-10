@@ -253,6 +253,16 @@ class RecipeIngredientsCreateSerializer(ModelSerializer):
         model = RecipeIngredient
         fields = ('id', 'amount')
 
+    def validate_amount(self, value):
+        """
+        Валидация ингредиентов. Кол-во ингредиента должно быть больше нуля.
+        """
+        if not value:
+            raise ValidationError(
+                'Количество ингредиента должно быть больше нуля.'
+            )
+        return value
+
 
 class RecipeCreateSerializer(ModelSerializer):
     """
